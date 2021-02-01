@@ -3,13 +3,17 @@ package com.example.test;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.speech.RecognizerIntent;
 import android.text.SpannableStringBuilder;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -47,14 +51,15 @@ public class MainActivity extends AppCompatActivity {
         final Button loadButton = findViewById(R.id.LoadButton);
         loadButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
-                // 設定ファイルを開きます。
+                /*// 設定ファイルを開きます。
                 SharedPreferences sharedPref = getSharedPreferences("FILE_NAME", Context.MODE_PRIVATE);
 
                 // 値の取得
                 String strVal = sharedPref.getString("SAVE_KEY", ""); // 既定値 123 を設定
 
                 final TextView text = findViewById(R.id.TestText);
-                text.setText(strVal);
+                text.setText(strVal);*/
+                displaySpeechRecognizer();
             }
         });
 
@@ -75,5 +80,32 @@ public class MainActivity extends AppCompatActivity {
                 InitMainActivityEvent();
             }
         });
+    }
+
+    private static final int SPEECH_REQUEST_CODE = 0;
+
+    // Create an intent that can start the Speech Recognizer activity
+    private void displaySpeechRecognizer() {
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        // Start the activity, the intent will be populated with the speech text
+        startActivityForResult(intent, SPEECH_REQUEST_CODE);
+    }
+
+    // This callback is invoked when the Speech Recognizer returns.
+    // This is where you process the intent and extract the speech text from the intent.
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode,
+                                    Intent data) {
+        if (requestCode == SPEECH_REQUEST_CODE && resultCode == RESULT_OK) {
+            List<String> results = data.getStringArrayListExtra(
+                    RecognizerIntent.EXTRA_RESULTS);
+            String spokenText = results.get(0);
+            final TextView text = findViewById(R.id.TestText);
+            text.setText(spokenText);
+            // Do something with spokenText
+        }
+        super.onActivityResult(requestCode, resultCode, data);
     }
 }
