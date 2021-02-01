@@ -1,28 +1,170 @@
 package com.example.test;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.CountDownTimer;
+import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.text.SpannableStringBuilder;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
+
+    private static final int MILLIS_IN_FUTURE = 11 * 500;
+    private static final int COUNT_DOWN_INTERVAL = 1000;
+
+    private Intent intent;
+    private SpeechRecognizer mRecognizer;
+    private TextView textView;
+
+    private int count = 5;
+    private TextView countTextView;
+    private CountDownTimer countDownTimer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // permission チェック
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO)) {
+                // 拒否した場合
+            } else {
+                // 許可した場合
+                int MY_PERMISSIONS_RECORD_AUDIO = 1;
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, MY_PERMISSIONS_RECORD_AUDIO);
+            }
+        }
+
+        intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.JAPAN.toString());
+
+        mRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        mRecognizer.setRecognitionListener(recognitionListener);
+
         InitMainActivityEvent();
+    }
+
+    private RecognitionListener recognitionListener = new RecognitionListener() {
+        @Override
+        public void onReadyForSpeech(Bundle bundle) {
+            final TextView text = findViewById(R.id.TestText);
+            text.setText("準備できた");
+        }
+
+        @Override
+        public void onBeginningOfSpeech() {
+            final TextView text = findViewById(R.id.TestText);
+            text.setText("喋って");
+        }
+
+        @Override
+        public void onRmsChanged(float v) {
+            final TextView text = findViewById(R.id.TestText);
+            text.setText("音声変わった");
+        }
+
+        @Override
+        public void onBufferReceived(byte[] bytes) {
+            final TextView text = findViewById(R.id.TestText);
+            text.setText("新しい音声");
+        }
+
+        @Override
+        public void onEndOfSpeech() {
+            final TextView text = findViewById(R.id.TestText);
+            text.setText("終わった");
+        }
+
+        @Override
+        public void onError(int i) {
+            final TextView text = findViewById(R.id.TestText);
+            switch (i) {
+                case SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
+                    text.setText("ネットワークエラー");
+                    break;
+                case SpeechRecognizer.ERROR_NETWORK:
+                    text.setText("その他ネットワークエラー");
+                    break;
+                case SpeechRecognizer.ERROR_AUDIO:
+                    text.setText("Audioエラー");
+                    break;
+                case SpeechRecognizer.ERROR_SERVER:
+                    text.setText("サーバーエラー");
+                    break;
+                case SpeechRecognizer.ERROR_CLIENT:
+                    text.setText("クライアントエラー");
+                    break;
+                case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
+                    text.setText("タイムアウト");
+                    break;
+                case SpeechRecognizer.ERROR_NO_MATCH:
+                    text.setText("結果が見つからない");
+                    break;
+                case SpeechRecognizer.ERROR_RECOGNIZER_BUSY:
+                    text.setText("今サービスが使えません");
+                    break;
+                case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
+                    text.setText("パーミッションエラー");
+                    break;
+            }
+        }
+
+        @Override
+        public void onResults(Bundle bundle) {
+            String key = SpeechRecognizer.RESULTS_RECOGNITION;
+            ArrayList<String> mResult = bundle.getStringArrayList(key);
+
+            String[] result = new String[0];
+            if (mResult != null) {
+                result = new String[mResult.size()];
+            }
+            if (mResult != null) {
+                mResult.toArray(result);
+            }
+
+            // テキスト比較
+/*            if (TextUtils.equals(result[0], "メリークリスマス")) {
+                Toast.makeText(MainActivity.this, "あなたもね！！", Toast.LENGTH_SHORT).show();
+                countDownTimer.cancel();
+                countTextView.setText("");
+            }*/
+
+            final TextView text = findViewById(R.id.TestText);
+            text.setText(result[0]);
+        }
+
+        @Override
+        public void onPartialResults(Bundle bundle) {
+        }
+
+        @Override
+        public void onEvent(int i, Bundle bundle) {
+        }
+    };
+
+
+    protected void onDestroy() {
+        super.onDestroy();
+        mRecognizer.destroy();
     }
 
     private void InitMainActivityEvent() {
@@ -59,7 +201,10 @@ public class MainActivity extends AppCompatActivity {
 
                 final TextView text = findViewById(R.id.TestText);
                 text.setText(strVal);*/
-                displaySpeechRecognizer();
+                //displaySpeechRecognizer();
+
+                // レコーディングスタート
+                mRecognizer.startListening(intent);
             }
         });
 
@@ -80,32 +225,5 @@ public class MainActivity extends AppCompatActivity {
                 InitMainActivityEvent();
             }
         });
-    }
-
-    private static final int SPEECH_REQUEST_CODE = 0;
-
-    // Create an intent that can start the Speech Recognizer activity
-    private void displaySpeechRecognizer() {
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        // Start the activity, the intent will be populated with the speech text
-        startActivityForResult(intent, SPEECH_REQUEST_CODE);
-    }
-
-    // This callback is invoked when the Speech Recognizer returns.
-    // This is where you process the intent and extract the speech text from the intent.
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode,
-                                    Intent data) {
-        if (requestCode == SPEECH_REQUEST_CODE && resultCode == RESULT_OK) {
-            List<String> results = data.getStringArrayListExtra(
-                    RecognizerIntent.EXTRA_RESULTS);
-            String spokenText = results.get(0);
-            final TextView text = findViewById(R.id.TestText);
-            text.setText(spokenText);
-            // Do something with spokenText
-        }
-        super.onActivityResult(requestCode, resultCode, data);
     }
 }
